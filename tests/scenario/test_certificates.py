@@ -10,7 +10,6 @@ import typing
 import pytest
 from charms.tls_certificates_interface.v3 import tls_certificates
 from ops.testing import CharmEvents, Context, Relation, Secret, State
-from scenario.context import _Event  # needed for custom events for now
 
 from src.charm import ChronyCharm
 from tests.utils import get_csr_common_name
@@ -28,7 +27,7 @@ def test_csr_created_after_nts_certificates_integration(mock_tls_keychain):
     relation = Relation("nts-certificates")
     state_in = State(config={"server-name": "example.com"}, relations=[relation])
 
-    state_out = ctx.run(_Event("nts-certificates-relation-created", relation=relation), state_in)
+    state_out = ctx.run(ctx.on.relation_created(relation), state_in)
 
     assert typing.cast(dict, state_out.get_relation(relation.id).local_unit_data)[
         "certificate_signing_requests"
@@ -47,7 +46,7 @@ def test_csr_not_created_if_server_name_unset(mock_tls_keychain):
     relation = Relation("nts-certificates")
     state_in = State(relations=[relation])
 
-    state_out = ctx.run(_Event("nts-certificates-relation-created", relation=relation), state_in)
+    state_out = ctx.run(ctx.on.relation_created(relation), state_in)
 
     assert "certificate_signing_requests" not in typing.cast(
         dict, state_out.get_relation(relation.id).local_unit_data
@@ -90,7 +89,7 @@ def test_receive_certificate(mock_chrony, helper):
         config={"server-name": "example.com", "sources": "ntp://example.com"}, relations=[relation]
     )
 
-    ctx.run(_Event("nts-certificates-relation-changed", relation=relation), state_in)
+    ctx.run(ctx.on.relation_changed(relation), state_in)
 
     assert helper.tls_keychain.get_chain()
     assert len(mock_chrony.read_tls_key_pairs()) == 1
